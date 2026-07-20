@@ -1,5 +1,26 @@
 # Known Issues
 
+## (Fixed) API had no CORS headers -- deployed web UI failed with "Failed to fetch"
+
+Caught by the user actually loading the deployed app in a browser after
+Phase 4 -- not by any of the 5 required CI checks, `smoke-test.mjs`, or the
+rollback drill. `apps/web` (a static site) and `apps/api` (a Node service)
+are separate Render services on separate origins in production, but the
+Express app never set any CORS headers, so the browser silently blocked
+every cross-origin request with a network-level "Failed to fetch" (not an
+HTTP error status -- nothing for a status-code-based check to catch).
+Invisible everywhere the pipeline actually checked: `smoke-test.mjs` uses
+Node's `fetch`, which does not enforce CORS at all; local dev proxies
+`/api` through Vite (`apps/web/vite.config.ts`), making requests
+same-origin. Fixed by adding the `cors` middleware with an explicit
+allowlist (the two Render web origins + localhost:5173) in `app.ts`. This
+is arguably the most important finding of this whole project: an automated
+pipeline that is "green everywhere" -- five required checks, a working
+deploy, a working rollback path -- can still ship an app that is completely
+broken for its only real user, because none of those checks exercise the
+one thing that actually matters (a browser loading the page). The report's
+model has no layer that does this.
+
 ## (Fixed) First Blueprint-created deploy can be "live" but unroutable
 
 `todo-api-production`'s very first deploy (triggered automatically by
