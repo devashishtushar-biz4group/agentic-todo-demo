@@ -88,14 +88,24 @@ async function waitForCommitLive(commitSha) {
   throw new Error(`no deploy for commit ${commitSha} reached "live" after ${MAX_ATTEMPTS} attempts`);
 }
 
+// Render only ever marks the *current* deploy "live" -- every deploy it
+// once superseded normally becomes "deactivated", not "live". A deploy that
+// never actually served traffic ends in a different terminal status
+// (build_failed, update_failed, canceled). So "the last deploy that was
+// genuinely good" is the next "deactivated" entry after the current one,
+// not another "live" one -- there is never a second "live" entry to find.
+const CLEANLY_SUPERSEDED_STATUSES = ["live", "deactivated"];
+
 async function rollbackToLastGood() {
   console.log(`Looking up deploy history for service ${serviceId}`);
   const deploys = await renderFetch(`/services/${serviceId}/deploys?limit=20`);
   const history = deploys.map((entry) => entry.deploy ?? entry);
   const currentlyLiveIndex = history.findIndex((d) => d.status === "live");
-  const priorGood = history.slice(currentlyLiveIndex + 1).find((d) => d.status === "live");
+  const priorGood = history
+    .slice(currentlyLiveIndex + 1)
+    .find((d) => CLEANLY_SUPERSEDED_STATUSES.includes(d.status));
   if (!priorGood) {
-    throw new Error("no prior successful ('live') deploy found to roll back to");
+    throw new Error("no prior successful deploy found to roll back to");
   }
   console.log(`Rolling back to deploy ${priorGood.id} (commit ${priorGood.commit?.id ?? "unknown"})`);
   const redeploy = await renderFetch(`/services/${serviceId}/deploys`, {

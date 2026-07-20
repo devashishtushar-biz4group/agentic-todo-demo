@@ -2,6 +2,42 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — fixed a real rollback-selection bug found by the drill itself
+
+The corrected (delayed-failure) drill run worked exactly as designed:
+`health-check-and-rollback` correctly detected production's `/healthz`
+degrading after Render's own promotion had already passed, and triggered
+`render-deploy.mjs --rollback` -- but that script itself then failed with
+`no prior successful ('live') deploy found to roll back to`. Root cause: my
+own logic assumed a "prior good" deploy would also carry status `"live"`,
+but Render only ever marks the *current* deploy `live` -- every deploy it
+cleanly superseded becomes `"deactivated"`, not `"live"`, so a second
+`"live"` entry can never exist and the search always failed. Fixed by
+searching for the next `"live"` **or** `"deactivated"` entry instead (a
+`"deactivated"` deploy is one that genuinely served traffic before being
+replaced; `build_failed`/`update_failed`/`canceled` deploys, which never
+served anything, are correctly still excluded). Re-ran the corrected logic
+directly: it found the right prior commit and successfully triggered a
+Render deploy pinned to that `commitId` -- confirming the one previously
+"NOT YET VERIFIED" assumption in this file actually holds.
+
+## 2026-07-20 — a code-only rollback doesn't fix an environment-caused incident
+
+The immediate re-run of the fixed rollback (above) still didn't restore
+production -- it redeployed the right prior *commit*, but that commit's
+process still read the same `SIMULATE_HEALTH_FAILURE=true` environment
+variable left set on the Render service from staging the drill, so it
+failed its health check too and Render's own promotion refused it (stuck
+`update_in_progress`, exactly like the very first drill attempt). Resolved
+by clearing the environment variable directly and redeploying. This is a
+genuine, general limitation worth carrying into the report's findings, not
+specific to this bug: **"roll back to the last known-good commit" only
+restores service if the incident's root cause actually traveled with the
+commit.** An incident caused by environment/config drift, a bad manual
+change, or external state persists across a code rollback -- the report's
+rollback story implicitly assumes code is the only thing that changes
+between a good deploy and a bad one, which is not true in general.
+
 ## 2026-07-20 — rollback drill hook made delayed, not immediate
 
 First attempt at the rollback drill set `SIMULATE_HEALTH_FAILURE=true` on
