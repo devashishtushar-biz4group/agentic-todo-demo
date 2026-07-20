@@ -8,6 +8,61 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   high: "#c62828",
 };
 
+interface PriorityFilterProps {
+  value: Priority | "all";
+  onChange: (value: Priority | "all") => void;
+}
+
+function PriorityFilterSelect({ value, onChange }: PriorityFilterProps) {
+  return (
+    <label>
+      Filter by priority
+      <select
+        aria-label="Filter by priority"
+        value={value}
+        onChange={(e) => onChange(e.target.value as Priority | "all")}
+      >
+        <option value="all">All</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+    </label>
+  );
+}
+
+interface TodoItemProps {
+  todo: Todo;
+  onToggle: (todo: Todo) => void;
+  onDelete: (id: number) => void;
+}
+
+function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
+  return (
+    <li>
+      <label>
+        <input type="checkbox" checked={todo.done} onChange={() => onToggle(todo)} />
+        <span style={{ textDecoration: todo.done ? "line-through" : "none" }}>{todo.title}</span>
+      </label>
+      <span
+        data-priority={todo.priority}
+        style={{
+          color: PRIORITY_COLORS[todo.priority],
+          border: `1px solid ${PRIORITY_COLORS[todo.priority]}`,
+          borderRadius: "4px",
+          padding: "0 4px",
+          marginLeft: "4px",
+        }}
+      >
+        {todo.priority}
+      </span>
+      <button type="button" onClick={() => onDelete(todo.id)}>
+        Delete
+      </button>
+    </li>
+  );
+}
+
 export function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState("");
@@ -64,48 +119,10 @@ export function App() {
         />
         <button type="submit">Add</button>
       </form>
-      <label>
-        Filter by priority
-        <select
-          aria-label="Filter by priority"
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value as Priority | "all")}
-        >
-          <option value="all">All</option>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </label>
+      <PriorityFilterSelect value={priorityFilter} onChange={setPriorityFilter} />
       <ul>
         {todos.map((todo) => (
-          <li key={todo.id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={todo.done}
-                onChange={() => handleToggle(todo)}
-              />
-              <span style={{ textDecoration: todo.done ? "line-through" : "none" }}>
-                {todo.title}
-              </span>
-            </label>
-            <span
-              data-priority={todo.priority}
-              style={{
-                color: PRIORITY_COLORS[todo.priority],
-                border: `1px solid ${PRIORITY_COLORS[todo.priority]}`,
-                borderRadius: "4px",
-                padding: "0 4px",
-                marginLeft: "4px",
-              }}
-            >
-              {todo.priority}
-            </span>
-            <button type="button" onClick={() => handleDelete(todo.id)}>
-              Delete
-            </button>
-          </li>
+          <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
         ))}
       </ul>
     </main>
