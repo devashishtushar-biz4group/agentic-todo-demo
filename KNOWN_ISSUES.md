@@ -1,5 +1,29 @@
 # Known Issues
 
+## Self-approval is impossible on a single-account repo — forces an admin bypass
+
+While merging PR #7 (a docs-only Phase 3 finding), `gh pr review 7 --approve`
+was rejected outright: `GraphQL: Review Can not approve your own pull request`.
+This is a GitHub platform rule, not a repo setting — it applies to the
+*account* that authored the PR, regardless of whether a human or an agent
+issued the API calls under that account's credentials. Concretely: since
+every PR in this repo is opened via `gh` authenticated as
+`devashishtushar-biz4group`, **no PR here can ever collect its one required
+approving review without a second, genuinely different GitHub account.**
+
+This PR was merged with an explicit, acknowledged `gh pr merge --admin`
+bypass (distinct from the earlier *accidental* `enforce_admins` bypass
+above — this one is deliberate and logged as such).
+
+Why this matters beyond this one repo: the report's gated architecture
+assumes "a human clicks approve" is meaningfully different from "the
+pipeline self-certifies," but on a single-maintainer project (a common case,
+including this one), the human *is* the same account that would need to
+open the PR in the first place — so the only way to get a real second
+approval is to add a second collaborator purely to satisfy the platform
+rule, which is organizational overhead the report doesn't mention as a
+prerequisite for the gated configuration to even function as designed.
+
 ## Admin/owner bypass makes branch protection non-absolute (enforce_admins)
 
 Caught live during Phase 3: a routine `git push` of a docs-only commit
