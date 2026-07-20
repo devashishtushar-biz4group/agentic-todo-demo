@@ -2,6 +2,33 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — wired up the per-item priority control (reviewer's 2nd BLOCK on PR #3)
+
+The reviewer subagent's second pass BLOCKed PR #3 because `updatePriority()`
+existed in `api.ts` but was never called — there was no way for a real user
+to ever set a todo's priority to anything but the default `medium`, making
+the badge and filter permanently inert. This traced back to `PLAN.md`'s
+"Open questions" section, where the `architect` subagent explicitly flagged
+"should the UI let users set priority?" rather than deciding it unilaterally
+— and it fell through unresolved into backend/frontend implementation.
+Fixed by adding a per-item priority `<select>` in `TodoItem`, using the
+already-built `updatePriority` function; no creation-time selector, sort, or
+bulk-edit added, keeping the fix scoped to what the reviewer identified.
+
+## 2026-07-20 — reverted the max-lines-per-function loosening; refactored instead
+
+The reviewer subagent's first pass BLOCKed PR #3 for bundling an
+80->150 `max-lines-per-function` gate change into the feature PR —
+correctly, since it directly contradicted `CLAUDE.md`'s "refactor rather
+than disable" rule and had nothing to do with issue #2. Reverted the gate
+change and instead extracted `todosRouter`'s handlers into named functions
+and `App`'s list item/filter into `TodoItem`/`PriorityFilterSelect`
+components, bringing both back under the original 80-line cap with no
+behavior change. This is the review loop working as the report describes: a
+reviewer with no memory of the in-the-moment reasoning that produced the
+gate change caught a shortcut that a continuation of the same context might
+have kept.
+
 ## 2026-07-20 — verify.yml pins Node 24, not 20
 
 The `test` job failed on PR #1 with `Error: No such built-in module:
