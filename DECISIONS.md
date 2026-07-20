@@ -2,6 +2,28 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — rollback drill hook made delayed, not immediate
+
+First attempt at the rollback drill set `SIMULATE_HEALTH_FAILURE=true` on
+`todo-api-production` (via the Render API directly, not committed to
+render.yaml) so `/healthz` failed immediately on every request. Result: the
+new deploy sat in `update_in_progress` for 4+ minutes and never reached
+`live` -- **Render's own deploy-time health check refused to promote it**,
+so the old, good instance kept serving traffic the entire time (confirmed
+via direct curl: production never actually went down). This is a genuinely
+important finding, not a bug in this project: Render's platform-level
+health-gated promotion already prevents a deploy that fails health
+immediately from ever seeing real traffic, which makes this project's
+custom `health-check-and-rollback` CI job **redundant for that specific
+failure class** -- it only adds value for deploys that pass Render's own
+initial check and degrade *afterward* (a slow leak, a delayed crash, an
+external dependency that fails only under real traffic). Canceled the stuck
+deploy (`POST /deploys/:id/cancel`) and redesigned the hook to delay the
+failure past Render's own promotion window (default 90s after boot, see
+`SIMULATE_HEALTH_FAILURE_DELAY_MS`), so the drill actually exercises the
+failure class this project's rollback path exists for, instead of a
+failure class Render already handles on its own.
+
 ## 2026-07-20 — render-deploy.mjs waits for Render's auto-deploy instead of triggering one
 
 The first real `deploy.yml` run failed immediately:
