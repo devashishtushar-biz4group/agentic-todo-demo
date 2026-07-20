@@ -4,6 +4,39 @@ Log of completed tasks, newest first. Each entry should be added by the
 pipeline once a task's PR merges — not written speculatively before that
 happens.
 
+## 2026-07-20 — Phase 4: real Render CD + a genuine rollback drill
+
+Created the 4 Render services via Blueprint. End-to-end `deploy.yml`
+(staging deploy -> smoke test -> production deploy -> health check) ran
+green for real. Along the way:
+
+- Fixed a real production bug caught only by an actual deploy: `tsc`
+  doesn't copy `.sql` migration files, so the compiled server crashed on
+  boot (see KNOWN_ISSUES.md).
+- Hit and understood a real Render platform quirk: a brand-new service's
+  first deploy can report "live" via the API for several minutes before
+  its routing actually connects (`x-render-routing: no-server`); a
+  redeploy resolved it instantly. `smoke-test.mjs`'s own retry loop rode
+  out an identical transient 404 on staging without any code change needed.
+- Found and fixed a real race: Render's Blueprint services auto-deploy on
+  push already, so the workflow's original "trigger a deploy" step raced
+  Render's own auto-triggered deploy for the same commit. Changed the
+  forward path to wait for Render's auto-deploy instead of competing with it.
+- **Ran the actual rollback drill** (env-var-gated, delayed health failure
+  on production only, never committed to render.yaml): `health-check-and-
+  rollback` correctly detected the failure, but the rollback script itself
+  had a real bug (searching for a second `"live"` deploy that can never
+  exist — Render marks superseded deploys `"deactivated"`, not `"live"`).
+  Fixed it, re-ran, and confirmed Render's `commitId` redeploy parameter
+  genuinely works. Also discovered, by direct experience rather than
+  guessing: a rollback to a prior *commit* does not undo environment/config
+  drift left over from the incident -- had to clear the drill's own env var
+  before the rollback actually restored service. Both findings are logged
+  in DECISIONS.md as general limitations of the report's rollback story,
+  not bugs specific to this repo.
+- Production confirmed healthy and smoke-tested clean after the drill;
+  drill hook fully removed from `healthz.ts`.
+
 ## 2026-07-20 — Phase 3: branch protection wired incrementally, each check verified live
 
 Enabled branch protection on `main` in three rounds (required human review
