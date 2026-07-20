@@ -4,6 +4,27 @@ Log of completed tasks, newest first. Each entry should be added by the
 pipeline once a task's PR merges — not written speculatively before that
 happens.
 
+## 2026-07-20 — Phase 3: branch protection wired incrementally, each check verified live
+
+Enabled branch protection on `main` in three rounds (required human review
+still on — this repo is still in its gated posture; enforce_admins left
+`false` as a deliberate escape hatch during validation, same reasoning as the
+sibling `claude-agent-poc` proof of concept):
+
+1. `test` + `lint` required.
+2. `typecheck` + `complexity` added.
+3. `security-scan` added (all 5 now required).
+
+For each round, pushed a deliberately broken PR isolating exactly the
+newly-added check(s) (a failing assertion + unused var for round 1, a
+type-only error for round 2, a known-vulnerable `minimist@0.0.8`
+devDependency for round 3), confirmed via `gh pr checks` that only the
+intended check(s) failed, and confirmed via `gh pr merge` that GitHub
+actually refused the merge each time ("the base branch policy prohibits the
+merge") — not just that the check showed red in the UI. All three test PRs
+closed without merging, branches deleted, local tree resynced. Branch
+protection now requires all 5 real checks plus 1 human approval.
+
 ## 2026-07-20 — Phase 2: priority-field ticket run through the real subagent
 pipeline (PR #3, not yet merged — awaiting human merge decision)
 
