@@ -4,6 +4,25 @@ Log of completed tasks, newest first. Each entry should be added by the
 pipeline once a task's PR merges — not written speculatively before that
 happens.
 
+## 2026-07-20 — Phase 5: flipped to fully autonomous, validated live
+
+Branch protection on `main` now requires only the 5 status checks --
+`required_pull_request_reviews` removed entirely -- with `enforce_admins:
+true` and repo-level auto-merge enabled. Validated for real, not just
+configured:
+
+- Opened PR #15, called `gh pr merge --auto` with no `--admin` flag and no
+  approval. It merged itself at the exact moment all 5 checks went green
+  (`mergedAt` recorded, zero human click).
+- Immediately re-tested the enforce_admins fix from Phase 3's finding: a
+  direct `git push` to `main` (as the repo owner) was flatly rejected --
+  `GH006: Protected branch update failed`, `5 of 5 required status checks
+  are expected`. The bypass hole documented in KNOWN_ISSUES.md is closed:
+  with no required review left to bypass, `enforce_admins: true` means the
+  5 status checks are now a real, unbypassable gate for everyone, admin
+  included. This doc update itself had to go through the normal PR ->
+  checks -> auto-merge path as a result -- no exceptions made for it.
+
 ## 2026-07-20 — Phase 4: real Render CD + a genuine rollback drill
 
 Created the 4 Render services via Blueprint. End-to-end `deploy.yml`
