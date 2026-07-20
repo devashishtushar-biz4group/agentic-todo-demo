@@ -1,5 +1,26 @@
 # Known Issues
 
+## (Fixed) Production build shipped without migration files -- tsc doesn't copy .sql assets
+
+Caught during Phase 4 by actually running `npm run build && npm start` and
+hitting the server (not by any test, lint, or typecheck check -- none of the
+five required CI jobs would have caught this). `tsc` only emits compiled
+`.js` from `.ts` sources; it silently drops non-TypeScript files like
+`apps/api/src/db/migrations/*.sql`. `createDb()` resolves the migrations
+directory relative to the running file's own location
+(`dist/db/migrations` in production, `src/db/migrations` under
+tests/`tsx dev`), so the compiled server crashed on boot with
+`ENOENT: no such file or directory, scandir '.../dist/db/migrations'` the
+moment it was actually started from a real build — exactly the failure mode
+a Render deploy would have hit on first boot. Fixed by adding
+`apps/api/scripts/copy-migrations.mjs` (a portable `fs.cpSync`, not a
+shell `cp`, so it doesn't depend on a POSIX shell being available on the
+deploy runner) and wiring it into `apps/api`'s `build` script. This is the
+single best argument in this whole project for the report's "smoke test
+before trusting a deploy" step: dev (`tsx watch src/index.ts`) and every
+required CI check exercise `src/`, not the actual `dist/` artifact that
+ships.
+
 ## Self-approval is impossible on a single-account repo — forces an admin bypass
 
 While merging PR #7 (a docs-only Phase 3 finding), `gh pr review 7 --approve`

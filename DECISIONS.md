@@ -2,6 +2,26 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — no rootDir in render.yaml; workspace-scoped commands instead
+
+The sibling `claude-agent-poc` proof of concept uses `rootDir: server` /
+`rootDir: client` in its `render.yaml` because its `server/`/`client/` are
+independent npm projects. This repo is an npm-workspaces monorepo instead
+(hoisted root `node_modules`), so `rootDir` would break dependency
+resolution if `npm install` ran scoped to just `apps/api` or `apps/web`.
+Each Render service instead builds from the repo root using
+`--workspace=<name>` (`npm ci && npm run build --workspace=api`, etc.),
+matching the pattern already used by CI's `verify.yml`.
+
+## 2026-07-20 — deploy.yml only wires the API services' rollback path
+
+`todo-web-{staging,production}` (static sites) deploy on push via Render's
+own Blueprint auto-deploy with no CI involvement — there's no runtime health
+check that can fail for a static bundle, so "rollback" isn't a meaningful
+concept for them in this demo. The Phase 4 rollback drill targets
+`todo-api-production`, the one service with an actual runtime and a real
+failure mode a health check can catch.
+
 ## 2026-07-20 — wired up the per-item priority control (reviewer's 2nd BLOCK on PR #3)
 
 The reviewer subagent's second pass BLOCKed PR #3 because `updatePriority()`

@@ -1,0 +1,53 @@
+services:
+  # Note: no `rootDir` on any service below, unlike a per-package repo layout.
+  # This is an npm-workspaces monorepo -- node_modules is hoisted to the repo
+  # root, so build/start commands run from the repo root and target a
+  # specific workspace with --workspace=<name> instead.
+
+  - type: web
+    name: todo-api-staging
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspace=api
+    startCommand: npm run start --workspace=api
+    healthCheckPath: /healthz
+    envVars:
+      # No DB_PATH override -- Render's free tier has no persistent disk,
+      # so an absolute path like /var/data would crash the service on boot
+      # (confirmed by the sibling claude-agent-poc proof of concept). Falls
+      # back to the app's own default relative path, which resets on every
+      # deploy/restart -- see KNOWN_ISSUES.md.
+      - key: PORT
+        value: 3001
+
+  - type: web
+    name: todo-api-production
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build --workspace=api
+    startCommand: npm run start --workspace=api
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: 3001
+
+  - type: web
+    name: todo-web-staging
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace=web
+    staticPublishPath: apps/web/dist
+    envVars:
+      # Placeholder -- Render assigns the real hostname (sometimes with a
+      # random suffix) only after first creation. Update this and redeploy
+      # once todo-api-staging's actual URL is known.
+      - key: VITE_API_URL
+        value: https://todo-api-staging.onrender.com
+
+  - type: web
+    name: todo-web-production
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace=web
+    staticPublishPath: apps/web/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://todo-api-production.onrender.com
