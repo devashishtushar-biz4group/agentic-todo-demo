@@ -4,6 +4,31 @@ Log of completed tasks, newest first. Each entry should be added by the
 pipeline once a task's PR merges — not written speculatively before that
 happens.
 
+## 2026-07-20 — Phase 6: monitoring-to-new-issue loop closed and validated live
+
+`monitor.yml` hit two real bugs before it worked, both fixed through the
+normal autonomous pipeline (PRs #18, #19):
+
+- A YAML block-scalar indentation bug in the issue body text -- reproduced
+  the exact "malformed workflow file fails instantly with no job-level
+  output" class the sibling `claude-agent-poc` proof of concept had already
+  documented, this time first-hand.
+- The default `GITHUB_TOKEN` lacked `issues: write` permission -- needed an
+  explicit `permissions:` block, since this was the first workflow in the
+  repo that needed to write a GitHub-native resource rather than just read
+  one or call an external API.
+
+Validated live with a synthetic failure (pointed `RENDER_API_PRODUCTION_URL`
+at an unreachable address, never touching real production): the workflow
+correctly filed a labeled `agent-task` issue (#20), a second run while
+still "down" correctly did **not** file a duplicate, and real production
+was confirmed healthy throughout via direct curl. Secret restored, test
+issue closed with an explanation.
+
+This closes only the monitoring -> new-issue half of Section 4's loop --
+see KNOWN_ISSUES.md for why the issue -> automated-pipeline trigger is a
+distinct, unbuilt piece of engineering, not a small remaining gap.
+
 ## 2026-07-20 — Phase 5: flipped to fully autonomous, validated live
 
 Branch protection on `main` now requires only the 5 status checks --
