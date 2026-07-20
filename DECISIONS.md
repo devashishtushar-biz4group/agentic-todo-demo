@@ -2,6 +2,22 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — monitor.yml's first version had a real YAML block-scalar bug
+
+The very failure mode the sibling `claude-agent-poc` proof of concept
+documented (an unquoted colon breaking `verify.yml`'s YAML) recurred here in
+a different shape: `monitor.yml`'s issue-body text was written as a literal
+multi-line string inside a `run: |` block, with several lines at zero
+indentation while the block scalar requires every content line indented at
+least as much as its first line. GitHub Actions failed the run instantly
+with the same generic, job-level-output-free message ("This run likely
+failed because of a workflow file issue") -- confirming, first-hand this
+time rather than by reading about it, that a malformed workflow file fails
+silently and unhelpfully regardless of which job or step the mistake is
+actually in. Fixed by building the issue body with `printf '...\n...'`
+instead of a literal multi-line quoted string, keeping every YAML line at a
+consistent indentation.
+
 ## 2026-07-20 — fixed a real rollback-selection bug found by the drill itself
 
 The corrected (delayed-failure) drill run worked exactly as designed:
