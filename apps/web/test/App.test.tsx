@@ -15,6 +15,7 @@ function makeTodo(overrides: Partial<Todo> = {}): Todo {
     title: "Sample todo",
     done: false,
     createdAt: "2026-01-01T00:00:00Z",
+    priority: "medium",
     ...overrides,
   };
 }
@@ -73,5 +74,55 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => expect(screen.queryByText("Delete me")).not.toBeInTheDocument());
+  });
+
+  it("renders a priority badge for a todo in the list", async () => {
+    mockedApi.listTodos.mockResolvedValue([
+      makeTodo({ id: 5, title: "High priority todo", priority: "high" }),
+    ]);
+
+    render(<App />);
+    await screen.findByText("High priority todo");
+
+    const badge = screen.getByText("high");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute("data-priority", "high");
+  });
+
+  it("narrows the rendered list when a priority filter is selected", async () => {
+    mockedApi.listTodos.mockResolvedValueOnce([
+      makeTodo({ id: 6, title: "Low task", priority: "low" }),
+      makeTodo({ id: 7, title: "High task", priority: "high" }),
+    ]);
+
+    render(<App />);
+    await screen.findByText("Low task");
+    await screen.findByText("High task");
+
+    mockedApi.listTodos.mockResolvedValueOnce([
+      makeTodo({ id: 7, title: "High task", priority: "high" }),
+    ]);
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Filter by priority"), "high");
+
+    await waitFor(() => expect(mockedApi.listTodos).toHaveBeenLastCalledWith("high"));
+    await waitFor(() => expect(screen.queryByText("Low task")).not.toBeInTheDocument());
+    expect(screen.getByText("High task")).toBeInTheDocument();
+  });
+
+  it("updates a todo's priority via the per-item select", async () => {
+    const todo = makeTodo({ id: 8, title: "Reprioritize me", priority: "medium" });
+    mockedApi.listTodos.mockResolvedValue([todo]);
+    mockedApi.updatePriority.mockResolvedValue({ ...todo, priority: "high" });
+
+    render(<App />);
+    await screen.findByText("Reprioritize me");
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Priority for Reprioritize me"), "high");
+
+    await waitFor(() => expect(mockedApi.updatePriority).toHaveBeenCalledWith(8, "high"));
+    expect(await screen.findByLabelText("Priority for Reprioritize me")).toHaveValue("high");
   });
 });
