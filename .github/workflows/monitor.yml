@@ -1,0 +1,50 @@
+name: monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check production health
+        id: healthcheck
+        run: node scripts/healthcheck.mjs "${{ secrets.RENDER_API_PRODUCTION_URL }}"
+        continue-on-error: true
+      - name: File an agent-task issue if unhealthy and none already open
+        if: steps.healthcheck.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --label agent-task --state open \
+            --search "\"Production health check failing\" in:title" \
+            --json number --jq 'length')
+          if [ "$existing" -eq 0 ]; then
+            gh issue create \
+              --title "Production health check failing" \
+              --label agent-task \
+              --body "Automated monitor detected /healthz failing on production.
+
+Detected at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+This issue was filed automatically -- no human involved. Closes the report's
+Section 4 monitoring-to-intake loop: this is the event that should feed
+back into the pipeline as a new agent-task ticket."
+          else
+            echo "An agent-task issue for this incident is already open -- not filing a duplicate."
+          fi
+
+# Note: this closes the monitoring -> new-issue half of the loop only. There
+# is no automated trigger in this repo that picks up a newly-filed
+# agent-task issue and runs it through intake -> ... -> merge unattended --
+# Phase 2 proved the subagent chain itself works, but it was invoked by a
+# human running `claude -p --agent <name>` by hand, not by a GitHub Actions
+# job reacting to `issues: opened`. Building that trigger was out of scope
+# for this project -- see KNOWN_ISSUES.md.
