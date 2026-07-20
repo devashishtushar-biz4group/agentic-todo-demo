@@ -110,4 +110,19 @@ describe("App", () => {
     await waitFor(() => expect(screen.queryByText("Low task")).not.toBeInTheDocument());
     expect(screen.getByText("High task")).toBeInTheDocument();
   });
+
+  it("updates a todo's priority via the per-item select", async () => {
+    const todo = makeTodo({ id: 8, title: "Reprioritize me", priority: "medium" });
+    mockedApi.listTodos.mockResolvedValue([todo]);
+    mockedApi.updatePriority.mockResolvedValue({ ...todo, priority: "high" });
+
+    render(<App />);
+    await screen.findByText("Reprioritize me");
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Priority for Reprioritize me"), "high");
+
+    await waitFor(() => expect(mockedApi.updatePriority).toHaveBeenCalledWith(8, "high"));
+    expect(await screen.findByLabelText("Priority for Reprioritize me")).toHaveValue("high");
+  });
 });

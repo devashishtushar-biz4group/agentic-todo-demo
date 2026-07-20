@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { createTodo, deleteTodo, listTodos, toggleTodo, type Priority, type Todo } from "./api";
+import {
+  createTodo,
+  deleteTodo,
+  listTodos,
+  toggleTodo,
+  updatePriority,
+  type Priority,
+  type Todo,
+} from "./api";
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   low: "#2e7d32",
@@ -35,9 +43,10 @@ interface TodoItemProps {
   todo: Todo;
   onToggle: (todo: Todo) => void;
   onDelete: (id: number) => void;
+  onPriorityChange: (todo: Todo, priority: Priority) => void;
 }
 
-function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
+function TodoItem({ todo, onToggle, onDelete, onPriorityChange }: TodoItemProps) {
   return (
     <li>
       <label>
@@ -56,6 +65,18 @@ function TodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
       >
         {todo.priority}
       </span>
+      <label>
+        Priority
+        <select
+          aria-label={`Priority for ${todo.title}`}
+          value={todo.priority}
+          onChange={(e) => onPriorityChange(todo, e.target.value as Priority)}
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </label>
       <button type="button" onClick={() => onDelete(todo.id)}>
         Delete
       </button>
@@ -97,6 +118,15 @@ export function App() {
     }
   }
 
+  async function handlePriorityChange(todo: Todo, priority: Priority) {
+    try {
+      const updated = await updatePriority(todo.id, priority);
+      setTodos((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function handleDelete(id: number) {
     try {
       await deleteTodo(id);
@@ -122,7 +152,13 @@ export function App() {
       <PriorityFilterSelect value={priorityFilter} onChange={setPriorityFilter} />
       <ul>
         {todos.map((todo) => (
-          <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} onDelete={handleDelete} />
+          <TodoItem
+            key={todo.id}
+            todo={todo}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onPriorityChange={handlePriorityChange}
+          />
         ))}
       </ul>
     </main>
