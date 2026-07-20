@@ -2,6 +2,21 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — verify.yml pins Node 24, not 20
+
+The `test` job failed on PR #1 with `Error: No such built-in module:
+node:sqlite` even though all 14 tests passed locally — because
+`actions/setup-node@v4` with `node-version: "20"` installs Node 20 for script
+execution, and `node:sqlite` doesn't exist on Node 20/21 at all (it landed in
+22.5). The local dev machine already had Node 24 installed, so this was
+completely invisible until a real CI run — the same category of gap the
+sibling `claude-agent-poc` proof of concept flagged about workflow YAML bugs
+never reproducing outside GitHub Actions. Fixed by pinning `node-version:
+"24"` in all five jobs and bumping root `package.json`'s `engines.node` to
+`>=22.5.0` to match. Confirms the report's "build-test-fix loop" claim in a
+narrow but real way: the failure was legible (clear error, not a silent
+hang) and fixable from the CI log alone.
+
 ## 2026-07-20 — no automated `independent-review` CI job at all
 
 Unlike a typical setup where this job would be stubbed-to-pass pending a

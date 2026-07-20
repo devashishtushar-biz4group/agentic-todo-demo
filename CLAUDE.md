@@ -11,7 +11,8 @@ itself.
 
 - `apps/api` — Node.js + Express + TypeScript API. Persistence via the
   built-in `node:sqlite` module (`DatabaseSync`) — no native dependency, no
-  ORM.
+  ORM. **Requires Node >=22.5** (`node:sqlite` doesn't exist at all on Node
+  20/21 — see DECISIONS.md); CI pins Node 24 to match.
 - `apps/web` — React + TypeScript, built with Vite. Talks to the API over
   `fetch`.
 - Tests: Vitest everywhere — `supertest` for the API, `@testing-library/react`
