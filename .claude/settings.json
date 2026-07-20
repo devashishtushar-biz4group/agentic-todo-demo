@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push origin main:*)",
+      "Bash(git push:*main)",
+      "Read(./.env*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Edit(./.github/workflows/**)",
+      "Write(./.github/workflows/**)"
+    ]
+  }
+}
