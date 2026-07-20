@@ -25,6 +25,35 @@ describe("GET /api/todos", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
   });
+
+  it("includes priority for every todo", async () => {
+    await request(app).post("/api/todos").send({ title: "Has priority" });
+    const res = await request(app).get("/api/todos");
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toHaveProperty("priority");
+  });
+
+  it("filters the list by priority when ?priority= is provided", async () => {
+    await request(app).post("/api/todos").send({ title: "Low one", priority: "low" });
+    await request(app).post("/api/todos").send({ title: "High one", priority: "high" });
+    await request(app).post("/api/todos").send({ title: "Another high", priority: "high" });
+
+    const res = await request(app).get("/api/todos?priority=high");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    for (const todo of res.body) {
+      expect(todo.priority).toBe("high");
+    }
+  });
+
+  it("returns the unfiltered list for an unrecognized priority query value", async () => {
+    await request(app).post("/api/todos").send({ title: "Low one", priority: "low" });
+    await request(app).post("/api/todos").send({ title: "High one", priority: "high" });
+
+    const res = await request(app).get("/api/todos?priority=urgent");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
 });
 
 describe("POST /api/todos", () => {
@@ -45,6 +74,30 @@ describe("POST /api/todos", () => {
   it("rejects a missing title with 400", async () => {
     const res = await request(app).post("/api/todos").send({});
     expect(res.status).toBe(400);
+  });
+
+  it("defaults priority to medium when omitted", async () => {
+    const res = await request(app)
+      .post("/api/todos")
+      .send({ title: "No priority given" });
+    expect(res.status).toBe(201);
+    expect(res.body.priority).toBe("medium");
+  });
+
+  it("accepts a valid priority value", async () => {
+    const res = await request(app)
+      .post("/api/todos")
+      .send({ title: "High priority task", priority: "high" });
+    expect(res.status).toBe(201);
+    expect(res.body.priority).toBe("high");
+  });
+
+  it("rejects an invalid priority value with 400", async () => {
+    const res = await request(app)
+      .post("/api/todos")
+      .send({ title: "Bad priority task", priority: "urgent" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
   });
 });
 
@@ -72,6 +125,43 @@ describe("PATCH /api/todos/:id", () => {
     const res = await request(app)
       .patch(`/api/todos/${created.body.id}`)
       .send({ done: "yes" });
+    expect(res.status).toBe(400);
+  });
+
+  it("updates priority on an existing todo and reflects it in the response", async () => {
+    const created = await request(app)
+      .post("/api/todos")
+      .send({ title: "Reprioritize me" });
+    expect(created.body.priority).toBe("medium");
+
+    const res = await request(app)
+      .patch(`/api/todos/${created.body.id}`)
+      .send({ priority: "high" });
+    expect(res.status).toBe(200);
+    expect(res.body.priority).toBe("high");
+  });
+
+  it("leaves priority unchanged when patching only done (no regression)", async () => {
+    const created = await request(app)
+      .post("/api/todos")
+      .send({ title: "Done-only patch", priority: "low" });
+    expect(created.body.priority).toBe("low");
+
+    const res = await request(app)
+      .patch(`/api/todos/${created.body.id}`)
+      .send({ done: true });
+    expect(res.status).toBe(200);
+    expect(res.body.done).toBe(true);
+    expect(res.body.priority).toBe("low");
+  });
+
+  it("rejects an invalid priority value with 400", async () => {
+    const created = await request(app)
+      .post("/api/todos")
+      .send({ title: "Bad priority patch" });
+    const res = await request(app)
+      .patch(`/api/todos/${created.body.id}`)
+      .send({ priority: "urgent" });
     expect(res.status).toBe(400);
   });
 });
