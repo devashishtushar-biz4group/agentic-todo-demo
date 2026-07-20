@@ -1,5 +1,23 @@
 # Known Issues
 
+## No automated trigger from a filed agent-task issue to the subagent pipeline
+
+`monitor.yml` (Phase 6) closes the monitoring -> new-issue half of the
+report's Section 4 loop: a scheduled health check auto-files a labeled
+`agent-task` issue on a real production failure, no human involved. What
+this repo does **not** have is the other half -- a GitHub Actions job that
+reacts to a newly-opened `agent-task` issue and runs it through
+`intake -> architect -> ... -> merge` unattended. Phase 2 proved the
+subagent chain itself works correctly (including two real reviewer BLOCKs),
+but every step there was invoked by a human running
+`claude -p --agent <name>` by hand against a ticket the human had also
+filed. Building the missing trigger (`on: issues: opened` -> headless
+`claude` invocations chained together, with its own retry/failure handling)
+is a real, distinct piece of engineering that was out of scope for this
+project. Section 4's "closed loop" diagram reads as a single mechanism; in
+practice it is at least two independently-built pieces, and only one of
+them was built and validated here.
+
 ## (Fixed) API had no CORS headers -- deployed web UI failed with "Failed to fetch"
 
 Caught by the user actually loading the deployed app in a browser after
