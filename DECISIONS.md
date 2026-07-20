@@ -2,6 +2,19 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — monitor.yml needs explicit `permissions: issues: write`
+
+Once the YAML parsed correctly, the health-check step failed exactly as
+intended (the deliberately-broken URL), but `gh issue create` then failed
+with `GraphQL: Resource not accessible by integration (createIssue)`. The
+default `GITHUB_TOKEN` GitHub Actions provisions per-run does not carry
+issue-creation permission unless the workflow explicitly requests it. Added
+a top-level `permissions: issues: write` block. Worth calling out in the
+findings writeup: every other job in this repo's workflows only reads
+repo contents or talks to an external API (Render), so this is the first
+place a workflow needed write access to a GitHub-native resource, and the
+default-deny posture caught that immediately rather than silently no-op'ing.
+
 ## 2026-07-20 — monitor.yml's first version had a real YAML block-scalar bug
 
 The very failure mode the sibling `claude-agent-poc` proof of concept
