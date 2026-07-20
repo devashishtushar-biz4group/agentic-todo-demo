@@ -1,5 +1,26 @@
 # Known Issues
 
+## (Fixed) First Blueprint-created deploy can be "live" but unroutable
+
+`todo-api-production`'s very first deploy (triggered automatically by
+Blueprint creation) built successfully, started successfully (app logs
+showed `api listening on :3001`), and Render itself declared `Your service
+is live`. Despite that, every request for several minutes returned
+`404`/`x-render-routing: no-server` at the edge -- Render's own
+"Detected service running on port 3001" log line appeared a full 5 minutes
+*after* the "live" declaration, suggesting the edge/routing layer hadn't
+finished wiring up to the instance yet. `todo-api-staging`, created at the
+same moment from the same commit, worked immediately -- so this wasn't an
+application bug. Triggering a second deploy via `scripts/render-deploy.mjs`
+(no code change, same commit) resolved it within ~15 seconds. Root cause
+not confirmed (platform-side propagation delay is the best guess), but the
+practical lesson for the Phase 4 deploy pipeline holds regardless: a
+"deploy status: live" API response is not sufficient evidence a service is
+actually reachable -- the smoke test's own retry loop caught and rode out
+an identical transient 404 on `todo-api-staging` moments later, which is
+exactly why the report's plan calls for a real smoke test after every
+deploy rather than trusting the deploy API's own status field.
+
 ## (Fixed) Production build shipped without migration files -- tsc doesn't copy .sql assets
 
 Caught during Phase 4 by actually running `npm run build && npm start` and

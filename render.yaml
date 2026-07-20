@@ -37,11 +37,11 @@ services:
     buildCommand: npm ci && npm run build --workspace=web
     staticPublishPath: apps/web/dist
     envVars:
-      # Placeholder -- Render assigns the real hostname (sometimes with a
-      # random suffix) only after first creation. Update this and redeploy
-      # once todo-api-staging's actual URL is known.
+      # Real assigned hostname (Render appended a random suffix, as the
+      # sibling claude-agent-poc proof of concept also observed) -- confirmed
+      # once todo-api-staging was actually created.
       - key: VITE_API_URL
-        value: https://todo-api-staging.onrender.com
+        value: https://todo-api-staging-bjvz.onrender.com
 
   - type: web
     name: todo-web-production
@@ -50,4 +50,4 @@ services:
     staticPublishPath: apps/web/dist
     envVars:
       - key: VITE_API_URL
-        value: https://todo-api-production.onrender.com
+        value: https://todo-api-production-ftcs.onrender.com
