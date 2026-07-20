@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node scripts/render-deploy.mjs "${{ secrets.RENDER_API_STAGING_SERVICE_ID }}"
+      - run: node scripts/render-deploy.mjs "${{ secrets.RENDER_API_STAGING_SERVICE_ID }}" "${{ github.sha }}"
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
 
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: node scripts/render-deploy.mjs "${{ secrets.RENDER_API_PRODUCTION_SERVICE_ID }}"
+      - run: node scripts/render-deploy.mjs "${{ secrets.RENDER_API_PRODUCTION_SERVICE_ID }}" "${{ github.sha }}"
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
 
