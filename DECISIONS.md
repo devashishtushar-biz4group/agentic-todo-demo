@@ -2,6 +2,30 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-20 — render-deploy.mjs waits for Render's auto-deploy instead of triggering one
+
+The first real `deploy.yml` run failed immediately:
+`DEPLOY FAILED: Unexpected end of JSON input`. Cause, confirmed via the
+Render API's own deploy history: `todo-api-staging` is a Blueprint service
+with `autoDeploy: "yes"` -- Render started its own deploy for the push the
+instant it saw it (trigger `new_commit`), 9 seconds before our workflow's
+`POST /services/:id/deploys` call landed (trigger `api`) and asked Render to
+deploy the exact same commit a second time. The second, redundant request is
+what returned the malformed/empty response.
+
+Fixed by changing the forward-deploy path from "trigger a deploy" to "wait
+for the commit Render already auto-deployed to reach live" (poll deploy
+history for an entry matching `github.sha`, per the CI job). Rollback is
+unaffected and still explicitly triggers a new deploy via the API --
+redeploying an *older* commit is not something auto-deploy-on-push would
+ever do by itself, so that path has no equivalent race to avoid.
+
+This is a real instance of the report's own "build-test-fix loop" claim:
+the failure was legible (a real HTTP-level error, not a silent hang) and
+fixable directly from the error plus one API query, without needing Render
+support or documentation beyond what the deploy-history endpoint already
+returned.
+
 ## 2026-07-20 — no rootDir in render.yaml; workspace-scoped commands instead
 
 The sibling `claude-agent-poc` proof of concept uses `rootDir: server` /
