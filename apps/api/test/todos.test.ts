@@ -14,7 +14,7 @@ beforeEach(() => {
 describe("GET /healthz", () => {
   it("returns 200 ok", async () => {
     const res = await request(app).get("/healthz");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(999); // deliberately broken -- Phase 3 branch-protection test
     expect(res.body).toEqual({ status: "ok" });
   });
 });
