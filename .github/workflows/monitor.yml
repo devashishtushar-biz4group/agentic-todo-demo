@@ -18,7 +18,13 @@ jobs:
           node-version: "24"
       - name: Check production health
         id: healthcheck
-        run: node scripts/healthcheck.mjs "${{ secrets.RENDER_API_PRODUCTION_URL }}"
+        # Deliberately its own secret, not secrets.RENDER_API_PRODUCTION_URL
+        # (the one deploy.yml's health-check-and-rollback job reads). A real
+        # incident happened when both pointed at the same secret: testing
+        # this workflow by pointing it at a fake URL also fed that fake
+        # signal to deploy.yml, which fired two unintended real rollbacks
+        # against production. See DECISIONS.md.
+        run: node scripts/healthcheck.mjs "${{ secrets.MONITOR_PRODUCTION_URL }}"
         continue-on-error: true
       - name: File an agent-task issue if unhealthy and none already open
         if: steps.healthcheck.outcome == 'failure'

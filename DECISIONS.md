@@ -2,6 +2,40 @@
 
 Architecture choices and the reasoning behind them, newest first.
 
+## 2026-07-22 — two safeguards added after a real accidental-rollback incident
+
+While testing `monitor.yml` (2026-07-20), `RENDER_API_PRODUCTION_URL` was
+temporarily pointed at a fake URL to simulate a failure. That secret is also
+read by `deploy.yml`'s own `health-check-and-rollback` job -- two unrelated
+PR merges during that window each triggered a real `deploy.yml` run, each
+saw the fake URL as unhealthy, and each fired a **real rollback against real
+production**. No lasting damage (a later normal deploy landed production
+back on the correct commit, confirmed via smoke test), but on a system with
+real persistent data this would have caused real disruption, twice, from a
+testing mistake rather than an actual incident.
+
+Two fixes, addressing the two independent causes:
+
+1. **Secret isolation**: `monitor.yml` now reads its own `MONITOR_PRODUCTION_URL`
+   secret instead of sharing `RENDER_API_PRODUCTION_URL` with `deploy.yml`.
+   Testing the monitor can now never influence the deploy pipeline's own
+   health check, by construction, not by discipline.
+2. **Rollback cooldown**: `render-deploy.mjs`'s rollback path now refuses to
+   fire if a prior rollback (a deploy with `trigger: "api"`) happened within
+   the last 10 minutes, and fails loudly instead, on the reasoning that
+   repeated rollbacks in a short window are far more likely to mean the
+   health *signal* is wrong than that production keeps failing in new ways.
+   This is the safeguard that would have caught the actual incident: the
+   second rollback fired ~2.5 minutes after the first, well inside the
+   cooldown window.
+
+Neither fix depends on the other -- secret isolation prevents this specific
+class of mistake from recurring; the cooldown limits the blast radius of
+*any* bad health signal, however it happens to arise, which is a genuine
+gap the report's rollback story doesn't address: an automated pipeline's
+mistakes execute unattended and fast, so a safeguard against firing the
+same destructive action repeatedly is not optional polish.
+
 ## 2026-07-20 — monitor.yml needs explicit `permissions: issues: write`
 
 Once the YAML parsed correctly, the health-check step failed exactly as
