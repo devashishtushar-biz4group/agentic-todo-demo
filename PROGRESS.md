@@ -4,6 +4,16 @@ Log of completed tasks, newest first. Each entry should be added by the
 pipeline once a task's PR merges — not written speculatively before that
 happens.
 
+## 2026-07-22 — Rollback safeguards shipped, following up on the 2026-07-20 incident
+
+Shipped both fixes for the accidental real-production-rollback incident
+from Phase 6 testing (PR #22, merged and auto-deployed cleanly): `monitor.yml`
+now reads its own `MONITOR_PRODUCTION_URL` secret instead of sharing
+`RENDER_API_PRODUCTION_URL` with `deploy.yml`, and `render-deploy.mjs`
+refuses to fire a rollback within 10 minutes of a prior one, failing loudly
+instead. Post-deploy, confirmed production healthy via `/healthz` and a
+full smoke test. See DECISIONS.md for the full reasoning.
+
 ## 2026-07-20 — Phase 6: monitoring-to-new-issue loop closed and validated live
 
 `monitor.yml` hit two real bugs before it worked, both fixed through the
