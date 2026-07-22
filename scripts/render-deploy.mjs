@@ -96,10 +96,40 @@ async function waitForCommitLive(commitSha) {
 // not another "live" one -- there is never a second "live" entry to find.
 const CLEANLY_SUPERSEDED_STATUSES = ["live", "deactivated"];
 
+// Real incident (2026-07-20): an unrelated secret shared with another
+// workflow got pointed at a fake URL for ad-hoc testing, which made two
+// separate CI runs, minutes apart, each independently conclude production
+// was unhealthy and each fire a real rollback -- there was no confusion
+// about *which* commit to roll back to; the health signal feeding this
+// script was simply wrong, twice. Since every rollback this script performs
+// shows up in the service's own deploy history with trigger "api" (the
+// forward path never triggers a deploy itself -- see the file header), a
+// recent "api"-triggered deploy is an unambiguous signal that a rollback
+// already fired very recently. Refuse to fire a second one inside the
+// cooldown window and fail loudly instead: a real, ongoing incident is much
+// more likely to need a human looking at why it's still broken than a
+// second automatic rollback, and a bad health signal (like the one that
+// caused this) should never be able to make this script thrash.
+const ROLLBACK_COOLDOWN_MS = 10 * 60 * 1000;
+
 async function rollbackToLastGood() {
   console.log(`Looking up deploy history for service ${serviceId}`);
   const deploys = await renderFetch(`/services/${serviceId}/deploys?limit=20`);
   const history = deploys.map((entry) => entry.deploy ?? entry);
+
+  const recentRollback = history.find(
+    (d) => d.trigger === "api" && Date.now() - new Date(d.createdAt).getTime() < ROLLBACK_COOLDOWN_MS,
+  );
+  if (recentRollback) {
+    const ageSec = Math.round((Date.now() - new Date(recentRollback.createdAt).getTime()) / 1000);
+    throw new Error(
+      `refusing to roll back again: deploy ${recentRollback.id} was already an automatic rollback ` +
+        `${ageSec}s ago (cooldown is ${ROLLBACK_COOLDOWN_MS / 1000}s). Repeated rollbacks in a short ` +
+        `window usually mean the health signal itself is wrong (bad URL, bad secret, flapping check), ` +
+        `not that production keeps failing in a new way. Investigate manually before retrying.`,
+    );
+  }
+
   const currentlyLiveIndex = history.findIndex((d) => d.status === "live");
   const priorGood = history
     .slice(currentlyLiveIndex + 1)
